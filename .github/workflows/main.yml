@@ -60,15 +60,15 @@ jobs:
           tar -czf build-${{ github.sha }}.tar.gz -C build .
 
       # 7. Upload build to S3
-      - name: Upload build to S3
-        run: |
-          aws s3 cp \
-            build-${{ github.sha }}.tar.gz \
-            s3://${{ secrets.S3_BUCKET }}/builds/build-${{ github.sha }}.tar.gz
+      # - name: Upload build to S3
+      #   run: |
+      #     aws s3 cp \
+      #       build-${{ github.sha }}.tar.gz \
+      #       s3://${{ secrets.S3_BUCKET }}/builds/build-${{ github.sha }}.tar.gz
 
-      # 8. Upload a "latest" copy
-      - name: Upload latest build
-        run: |
-          aws s3 cp \
-            build-${{ github.sha }}.tar.gz \
-            s3://${{ secrets.S3_BUCKET }}/builds/latest.tar.gz
+      # # 8. Upload a "latest" copy
+      # - name: Upload latest build
+      #   run: |
+      #     aws s3 cp \
+      #       build-${{ github.sha }}.tar.gz \
+      #       s3://${{ secrets.S3_BUCKET }}/builds/latest.tar.gz
