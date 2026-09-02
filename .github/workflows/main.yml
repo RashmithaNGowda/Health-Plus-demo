@@ -1,0 +1,62 @@
+name: Build and Store in S3
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout source code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: npm ci
+
+      # 4. Build application
+      - name: Build application
+        run: npm run build
+
+      # 5. Configure AWS authentication using GitHub OIDC
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: us-east-1
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+
+      # 6. Create a compressed build artifact
+      - name: Package build
+        run: |
+          tar -czf build-${{ github.sha }}.tar.gz -C dist .
+
+      # 7. Upload build to S3
+      - name: Upload build to S3
+        run: |
+          aws s3 cp \
+            build-${{ github.sha }}.tar.gz \
+            s3://${{ secrets.S3_BUCKET }}/builds/build-${{ github.sha }}.tar.gz
+
+      # 8. Upload a "latest" copy
+      - name: Upload latest build
+        run: |
+          aws s3 cp \
+            build-${{ github.sha }}.tar.gz \
+            s3://${{ secrets.S3_BUCKET }}/builds/latest.tar.gz
