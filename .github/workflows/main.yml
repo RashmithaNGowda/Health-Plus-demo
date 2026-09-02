@@ -35,6 +35,18 @@ jobs:
       - name: Build application
         run: npm run build
 
+      # Cghecking build direc
+      - name: Check build output
+        run: |
+          echo "Current directory:"
+          pwd
+      
+          echo "Files and directories:"
+          ls -la
+      
+          echo "All directories:"
+          find . -maxdepth 2 -type d
+
       # 5. Configure AWS authentication using GitHub OIDC
       # - name: Configure AWS credentials
       #   uses: aws-actions/configure-aws-credentials@v4
