@@ -7,76 +7,108 @@ on:
 
   workflow_dispatch:
 
+# Minimum permissions required by this workflow
 permissions:
   id-token: write
   contents: read
 
+# Prevent multiple deployments to main from running simultaneously
+# concurrency:
+#   group: production-deployment
+#   cancel-in-progress: false
+
 jobs:
   build-and-upload:
+    name: Build and Upload to S3
     runs-on: ubuntu-latest
 
     steps:
+
+      # --------------------------------------------------
       # 1. Checkout source code
+      # --------------------------------------------------
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # --------------------------------------------------
       # 2. Setup Node.js
+      # --------------------------------------------------
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
+      # --------------------------------------------------
       # 3. Install dependencies
+      # --------------------------------------------------
       - name: Install dependencies
         run: npm ci
 
+      # --------------------------------------------------
       # 4. Build application
+      # --------------------------------------------------
       - name: Build application
         run: npm run build
 
-      # Checking build direc
-      - name: Check build output
+      # --------------------------------------------------
+      # 5. Validate build output
+      # --------------------------------------------------
+      - name: Validate build output
         run: |
-          echo "Current directory:"
-          pwd
-      
-          echo "Files and directories:"
-          ls -la
-      
-          echo "All directories:"
-          find . -maxdepth 2 -type d
+          if [ ! -d "build" ]; then
+            echo "ERROR: build directory does not exist"
+            exit 1
+          fi
 
-          
-      - name: Check GitHub identity
-        run: |
-          echo "Repository = $GITHUB_REPOSITORY"
-          echo "Ref = $GITHUB_REF"
-          echo "Branch = $GITHUB_REF_NAME"
-          echo "Event = $GITHUB_EVENT_NAME"
+          if [ -z "$(find build -mindepth 1 -print -quit)" ]; then
+            echo "ERROR: build directory is empty"
+            exit 1
+          fi
 
-      # 5. Configure AWS authentication using GitHub OIDC
+          echo "Build directory:"
+          ls -lah build
+
+      # --------------------------------------------------
+      # 6. Configure AWS using GitHub OIDC
+      # --------------------------------------------------
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: us-east-1
           role-to-assume: arn:aws:iam::853973692277:role/sage-doyenai-demo
 
-      # 6. Create a compressed build artifact
+      # --------------------------------------------------
+      # 7. Verify AWS identity
+      # --------------------------------------------------
+      - name: Verify AWS identity
+        run: |
+          aws sts get-caller-identity
+
+      # --------------------------------------------------
+      # 8. Create build artifact
+      # --------------------------------------------------
       - name: Package build
         run: |
-          tar -czf build-${{ github.sha }}.tar.gz -C build .
+          tar -czf "build-${GITHUB_SHA}.tar.gz" -C build .
 
-      # 7. Upload build to S3
+          echo "Created artifact:"
+          ls -lh "build-${GITHUB_SHA}.tar.gz"
+
+      # --------------------------------------------------
+      # 9. Upload versioned build to S3
+      # --------------------------------------------------
       - name: Upload build to S3
         run: |
           aws s3 cp \
-            build-${{ github.sha }}.tar.gz \
-            s3://${{ secrets.S3_BUCKET }}/builds/build-${{ github.sha }}.tar.gz
+            "build-${GITHUB_SHA}.tar.gz" \
+            "s3://${{ secrets.S3_BUCKET }}/builds/build-${GITHUB_SHA}.tar.gz"
 
-      # 8. Upload a "latest" copy
+      # --------------------------------------------------
+      # 10. Upload latest build
+      # --------------------------------------------------
       - name: Upload latest build
         run: |
           aws s3 cp \
-            build-${{ github.sha }}.tar.gz \
-            s3://${{ secrets.S3_BUCKET }}/builds/latest.tar.gz
+            "build-${GITHUB_SHA}.tar.gz" \
+            "s3://${{ secrets.S3_BUCKET }}/builds/latest.tar.gz"
