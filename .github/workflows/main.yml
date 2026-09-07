@@ -52,7 +52,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: us-east-1
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: arn:aws:iam::853973692277:role/sage-doyenai-demo
 
       # 6. Create a compressed build artifact
       - name: Package build
